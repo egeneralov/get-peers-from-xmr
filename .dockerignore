@@ -1,0 +1,7 @@
+.git
+.gitignore
+.github
+.dockerignore
+Dockerfile
+.gitlab-ci.yml
+vendor

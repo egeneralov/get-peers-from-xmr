@@ -1,0 +1,45 @@
+stages:
+  - build
+
+variables:
+  CGO_ENABLED: 0
+  GOARCH: amd64
+  REPO_NAME: github.com/egeneralov/get-peers-from-xmr
+
+.build: &build
+  image: golang:1.13-alpine
+  stage: build
+  before_script:
+    - mkdir -p $GOPATH/src/$(dirname $REPO_NAME)
+    - ln -svf $CI_PROJECT_DIR $GOPATH/src/$REPO_NAME
+    - cd $GOPATH/src/$REPO_NAME
+  script:
+    - go build -a -v -installsuffix cgo -ldflags="-w -s" -o ${CI_PROJECT_DIR}/get-peers-from-xmr-${GOOS}-${GOARCH}
+  artifacts:
+    paths:
+      - ${CI_PROJECT_DIR}/get-peers-from-xmr-${GOOS}-${GOARCH}
+    when: on_success
+    expire_in: 180 days
+
+
+darwin:
+  variables:
+    GOOS: darwin
+  <<: *build
+
+linux:
+  variables:
+    GOOS: linux
+  <<: *build
+
+docker:
+  image: docker:latest
+  stage: build
+  services:
+    - docker:dind
+  variables:
+    DOCKER_BUILDKIT: 1
+  script:
+    - docker login -u "${CI_REGISTRY_USER}" -p "${CI_REGISTRY_PASSWORD}" "${CI_REGISTRY}"
+    - docker build --pull -t "${CI_REGISTRY_IMAGE}:${CI_COMMIT_REF_SLUG}-${CI_COMMIT_SHA}" .
+    - docker push "${CI_REGISTRY_IMAGE}:${CI_COMMIT_REF_SLUG}-${CI_COMMIT_SHA}"
